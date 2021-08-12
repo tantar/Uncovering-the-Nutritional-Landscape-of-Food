@@ -13,7 +13,7 @@ type = st.sidebar.selectbox("Mode", ["Individual Foods","Comparison","Diet with 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    sex = st.radio("What is your Biological Sex?",["Male","Female"])
+    sex = st.radio("What is your Biological Sex?",['Male 19-30y','Female 19-30y'])
 with col2:
     diet = st.radio("Do you have any dietary limitations?",["None","Vegetarian","Vegan","Ovolactarian"])
 with col3:
@@ -24,7 +24,7 @@ d = pd.read_csv("data/nutrient_foodname_DRI.csv")
 
 
 
-if sex == "Male":
+if sex == 'Male 19-30y':
     d.loc[:,"Percent_of_daily_intake"] = ((d.nutrient_value * d.DRI_conv) / d.DRI_MALE).round(3)
 else:
     d.loc[:, "Percent_of_daily_intake"] = ((d.nutrient_value * d.DRI_conv) / d.DRI_FEM).round(3)
@@ -157,10 +157,10 @@ elif type == "Diet with Recommendations":
         # Create two checkboxes, of which its isChecked status is referenced by the variables
         # 'total_checkbox' & 'gender_checkbox'
         total_checkbox: bool = st.checkbox('Show total only')
-
-        gender_radio = st.radio(
-            'Gender:', options=['Male 19-30y', 'Female 19-30y'])
-        gender_checkbox = gender_radio == 'Male 19-30y'
+        #
+        # gender_radio = st.radio(
+        #     'Gender:', options=['Male 19-30y', 'Female 19-30y'])
+        gender_checkbox = sex == 'Male 19-30y'
 
 
         def create_barcharts(df, keys=[], male: bool = True):
