@@ -59,9 +59,10 @@ if type == "Individual Foods":
     fig.add_trace(go.Bar(x=min.DRI_name, y=min.Percent_of_daily_intake * 100, marker={'color': colors[3]}),3,1)
 
     # Tune layout and hover info
+    fig.update_yaxes(title_text='Percent Daily Value')
     fig.update_traces(hoverinfo='label+text+value', selector=dict(type='pie'))
     fig.update_traces(showlegend=False, selector=dict(type='bar'))
-    fig.update_yaxes(title_text='')
+
     fig.update_layout(height = 1000)
     fig.update(layout_title_text='Essential Nutrients (per 100 g serving)',layout_title_font_size = 24)
 
@@ -69,6 +70,43 @@ if type == "Individual Foods":
 
 
 
+elif type == "Comparison":
+    foods = st.multiselect("Foods", dl.food, ["Nuts, almonds", "Blueberries, raw", "Kale, raw"])
+
+    cfp = dl.loc[dl.food.isin(foods),["Carbohydrate","Protein","Total Fiber"]].sum(axis=0).copy()
+    vit = d.loc[(d.food.isin(foods)) & (d.DRI_name.str.contains("vita|fol|nia|flav|thia",case=False))].sort_values("DRI_name")
+    min = d.loc[(d.food.isin(foods)) & (d.DRI_name.str.contains(","))].sort_values("DRI_name")
+    # Create subplots, using 'domain' type for pie charts
+    specs = [[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}],
+             [{'colspan':3},None,None],
+             [{'colspan': 3}, None, None]]
+    fig = make_subplots(rows=3, cols=3, specs=specs, vertical_spacing= 0.1,
+                        subplot_titles= ["Carbohydrates","Proteins","Fiber","Vitamins","Minerals"])
+
+
+    # Define pie charts
+    fig.add_trace(go.Pie(name = "Carbs", labels = ["Met", "Missing"], marker = {"colors":[colors[1],colors[-1]]}, sort = False, showlegend = False, values=[cfp.Carbohydrate, (1-cfp.Carbohydrate)]), 1, 1)
+    fig.add_trace(go.Pie(name = "Protein", labels = ["Met", "Missing"], sort = False, showlegend = False,  values=[cfp.Protein, (1-cfp.Protein)]), 1, 2)
+    fig.add_trace(go.Pie(name = "Fiber", labels = ["Met", "Missing"], sort = False, showlegend = False, values=[cfp.loc["Total Fiber"], (1-cfp.loc["Total Fiber"])]), 1, 3)
+
+    i = 0
+    for f in foods:
+        fig.add_trace(go.Bar(x=vit.loc[vit.food == f, "DRI_name"], y=vit.loc[vit.food == f, "Percent_of_daily_intake"] * 100,
+                             hovertext = f, name=f, legendgroup= f, marker={'color': colors[i]}), 2,1)
+        fig.add_trace(go.Bar(x=min.loc[min.food == f, "DRI_name"], y=min.loc[min.food == f, "Percent_of_daily_intake"] * 100,
+                             hovertext = f, name=f, legendgroup= f, showlegend= False, marker={'color': colors[i]}), 3, 1)
+        i = (i+1)
+
+
+
+    # Tune layout and hover info
+    fig.update_yaxes(title_text='Percent Daily Value')
+    fig.update_traces(hoverinfo='label+text+value', selector=dict(type='pie'))
+    fig.update_traces(selector=dict(type='bar'))
+    fig.update_layout(height = 1000, barmode = "stack")
+    fig.update(layout_title_text='Essential Nutrients (per 100 g serving)',layout_title_font_size = 24)
+
+    st.plotly_chart(fig)
 
 elif type == "Diet with Recommendations":
     food = d.copy()
@@ -84,25 +122,33 @@ elif type == "Diet with Recommendations":
         # Create a two column container
         col1, col2 = st.columns(2)
 
+        unique_minerals = food['DRI_name'].unique().tolist()
+        notis = ["Carbohydrate","Protein","Total Fiber","Choline","Total Water"]
+        unique_minerals = [nutrient for nutrient in unique_minerals if nutrient not in notis]
+
+
+
+        unique_minerals = [
+            nutrient for nutrient in unique_minerals
+            if 'Vitamin' not in nutrient and ':' not in nutrient and ', ' in nutrient]
+
+
         # First column contains the vitamin multiselector
         with col1:
             # Grab all unique micronutrients
             unique_nutrients = food['DRI_name'].unique().tolist()
             # Loop through each micronutrient and filter out those that do contain the word 'Vitamin' in it
+            unique_nutrients = [nutrient for nutrient in unique_nutrients if nutrient not in notis]
             unique_nutrients = [
-                nutrient for nutrient in unique_nutrients if 'Vitamin' in nutrient]
+                nutrient for nutrient in unique_nutrients if nutrient not in unique_minerals]
             vitamins_keys = st.multiselect(
                 'Select Vitamins',
                 sorted(unique_nutrients), []
             )
 
         with col2:
-            unique_minerals = food['DRI_name'].unique().tolist()
-
             # Loop through each micronutrient and filter out those that are not minerals
-            unique_minerals = [
-                nutrient for nutrient in unique_minerals
-                if 'Vitamin' not in nutrient and ':' not in nutrient and ', ' in nutrient]
+
             mineral_keys = st.multiselect(
                 'Select Minerals',
                 sorted(unique_minerals), []
@@ -366,44 +412,4 @@ elif type == "Diet with Recommendations":
                 st.write(str(i) + ".    " + f)
                 i = i + 1
 
-elif type == "Comparison":
-    foods = st.multiselect("Foods", dl.food, ["Nuts, almonds", "Blueberries, raw", "Kale, raw"])
-
-    cfp = dl.loc[dl.food.isin(foods),["Carbohydrate","Protein","Total Fiber"]].sum(axis=0).copy()
-    vit = d.loc[(d.food.isin(foods)) & (d.DRI_name.str.contains("vita",case=False))].sort_values("nutrient")
-    min = d.loc[(d.food.isin(foods)) & (d.DRI_name.str.contains(","))].sort_values("nutrient")
-    oth = d.loc[(d.food.isin(foods)) & ~(d.DRI_name.str.contains(",|vita|prot|carb|fib",case=False))].sort_values("nutrient")
-    # Create subplots, using 'domain' type for pie charts
-    specs = [[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}],
-             [{'colspan':3},None,None],
-             [{'colspan': 3}, None, None],
-             [{'colspan':3},None,None]]
-    fig = make_subplots(rows=4, cols=3, specs=specs, vertical_spacing= 0.1,
-                        subplot_titles= ["Carbohydrates","Proteins","Fiber","Vitamins","Minerals","Other"])
-
-
-    # Define pie charts
-    fig.add_trace(go.Pie(name = "Carbs", labels = ["Met", "Missing"], marker = {"colors":[colors[1],colors[-1]]}, sort = False, showlegend = False, values=[cfp.Carbohydrate, (1-cfp.Carbohydrate)]), 1, 1)
-    fig.add_trace(go.Pie(name = "Protein", labels = ["Met", "Missing"], sort = False, showlegend = False,  values=[cfp.Protein, (1-cfp.Protein)]), 1, 2)
-    fig.add_trace(go.Pie(name = "Fiber", labels = ["Met", "Missing"], sort = False, showlegend = False, values=[cfp.loc["Total Fiber"], (1-cfp.loc["Total Fiber"])]), 1, 3)
-
-    i = 0
-    for f in foods:
-        fig.add_trace(go.Bar(x=vit.loc[vit.food == f, "DRI_name"], y=vit.loc[vit.food == f, "Percent_of_daily_intake"],
-                             hovertext = f, name=f, legendgroup= f, marker={'color': colors[i]}), 2,1)
-        fig.add_trace(go.Bar(x=min.loc[min.food == f, "DRI_name"], y=min.loc[min.food == f, "Percent_of_daily_intake"],
-                             hovertext = f, name=f, legendgroup= f, showlegend= False, marker={'color': colors[i]}), 3, 1)
-        fig.add_trace(go.Bar(x=oth.loc[oth.food == f, "DRI_name"], y=oth.loc[oth.food == f, "Percent_of_daily_intake"],
-                             hovertext = f, name=f, legendgroup= f, showlegend= False, marker={'color': colors[i]}), 4, 1)
-        i = (i+1)
-
-
-
-    # Tune layout and hover info
-    fig.update_traces(hoverinfo='label+text+value', selector=dict(type='pie'))
-    fig.update_traces(selector=dict(type='bar'))
-    fig.update_layout(height = 1000, barmode = "stack")
-    fig.update(layout_title_text='Essential Nutrients (per 100 g serving)',layout_title_font_size = 24)
-
-    st.plotly_chart(fig)
 
