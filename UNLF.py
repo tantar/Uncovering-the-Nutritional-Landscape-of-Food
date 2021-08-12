@@ -6,7 +6,7 @@ import plotly_express as px
 
 pd.set_option('display.max_columns', 5)
 
-st.title("Understanding the Landscape of Nutrition")
+st.title("Visualizing the Landscape of Nutrition")
 st.sidebar.title("Options")
 type = st.sidebar.selectbox("Mode", ["Individual Foods","Comparison","Diet with Recommendations"])
 
@@ -15,12 +15,18 @@ col1, col2, col3 = st.columns(3)
 with col1:
     sex = st.radio("What is your Biological Sex?",['Male 19-30y','Female 19-30y'])
 with col2:
-    diet = st.radio("Do you have any dietary limitations?",["None","Vegetarian","Vegan","Ovolactarian"])
+    diet = st.radio("Do you have any dietary limitations?",["None","Ovo-lacto vegetarian","Vegan"])
 with col3:
     act = st.radio("What is your activitiy level?",["Sedentary","Lightly Active","Moderately Active","Highly Active"])
 
-
 d = pd.read_csv("data/nutrient_foodname_DRI.csv")
+
+if diet == "Vegan":
+    d = d[d.Vegan == 1]
+elif diet == "Ovo-lacto vegetarian":
+    d = d[d.loc[:,"Ovo-lacto vegetarian"] == 1]
+
+
 
 
 
@@ -29,7 +35,7 @@ if sex == 'Male 19-30y':
 else:
     d.loc[:, "Percent_of_daily_intake"] = ((d.nutrient_value * d.DRI_conv) / d.DRI_FEM).round(3)
 
-d = d.drop_duplicates(subset = ["DRI_name","food"])
+d = d.drop_duplicates(subset = ["DRI_name","food"]).dropna(subset = ["nutrient"])
 
 
 dl = (d.pivot_table(index = ["food"], columns = ["DRI_name"], values = "Percent_of_daily_intake")
@@ -38,7 +44,7 @@ colors = px.colors.qualitative.Pastel1
 #st.write(dl)
 
 if type == "Individual Foods":
-    food = st.selectbox("Food", dl.food)
+    food = st.selectbox("Food", d.food.unique())
 
     cfp = dl.loc[dl.food == food,["Carbohydrate","Protein","Total Fiber"]]
     cfp.loc[1,:] = [(1-i) for i in cfp.iloc[0,:]]
@@ -50,7 +56,6 @@ if type == "Individual Foods":
              [{'colspan': 3}, None, None]]
     fig = make_subplots(rows=3, cols=3, specs=specs, vertical_spacing= 0.1,
                         subplot_titles= ["Carbohydrates","Proteins","Fiber","Vitamins","Minerals"])
-
     # Define pie charts
     fig.add_trace(go.Pie(name = "Carbs", labels = ["Met", "Missing"],marker = {"colors":[colors[1],colors[-1]]}, values=cfp.Carbohydrate), 1, 1)
     fig.add_trace(go.Pie(name = "Protein", labels = ["Met", "Missing"], values=cfp.Protein), 1, 2)
@@ -110,13 +115,14 @@ elif type == "Comparison":
 
 elif type == "Diet with Recommendations":
     food = d.copy()
+    st.cache()
     with st.container():
         st.subheader('Compare food micronutrients using bar charts')
 
         # Create a multiselector widget titled 'Select Foods', populate it with all unique food names
         options = st.multiselect(
             'Select Foods',
-            sorted(food['food'].unique()), []
+            d.food.unique(), ["Nuts, almonds", "Blueberries, raw", "Kale, raw"]
         )
 
         # Create a two column container
@@ -321,6 +327,7 @@ elif type == "Diet with Recommendations":
         data = pd.read_csv(
             "https://raw.githubusercontent.com/STRIDES-Codes/Uncovering-the-Nutritional-Landscape-of-Food/main/nutrient_foodname_amount.tsv",
             sep="\t")
+        data = data[data.food.isin(d.food)]
 
 
         def get_info(food):
