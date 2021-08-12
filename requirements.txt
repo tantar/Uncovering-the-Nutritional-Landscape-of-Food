@@ -1,3 +1,4 @@
 plotly
+plotly_express
 tableone
 lifelines
